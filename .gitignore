@@ -1,3 +1,7 @@
+ZomatoAPIKey.txt
+.idea/
+*.iml
+
 # Built application files
 *.apk
 *.ap_
