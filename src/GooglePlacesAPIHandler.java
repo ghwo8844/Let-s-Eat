@@ -15,21 +15,29 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 
-class GooglePlacesAPI {
+class GooglePlacesAPIHandler {
     private double lat, lon;
     private CloseableHttpClient client;
     private String APIKey;
 
-    public GooglePlacesAPI() throws IOException {
+    private class Place {
+        
+
+        public Place() {
+
+        }
+    }
+
+    public GooglePlacesAPIHandler() throws IOException {
         client = HttpClients.createDefault();
         BufferedReader getAPIKey = new BufferedReader(new FileReader(new File("GooglePlacesAPIKey.txt")));
         APIKey = getAPIKey.readLine().trim();
         getAPIKey.close();
-        lat = 0;
-        lon = 0;
+        lat = Double.MAX_VALUE;
+        lon = Double.MAX_VALUE;
     }
 
-    public GooglePlacesAPI(double lat, double lon) throws IOException {
+    public GooglePlacesAPIHandler(double lat, double lon) throws IOException {
         this();
         this.lat = lat;
         this.lon = lon;
