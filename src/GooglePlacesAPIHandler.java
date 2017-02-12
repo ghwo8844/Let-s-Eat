@@ -4,7 +4,12 @@
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
@@ -19,14 +24,6 @@ class GooglePlacesAPIHandler {
     private double lat, lon;
     private CloseableHttpClient client;
     private String APIKey;
-
-    private class Place {
-        
-
-        public Place() {
-
-        }
-    }
 
     public GooglePlacesAPIHandler() throws IOException {
         client = HttpClients.createDefault();
@@ -43,27 +40,76 @@ class GooglePlacesAPIHandler {
         this.lon = lon;
     }
 
-    public JsonObject getSearchResult(String query) {
+    public LinkedList<Place> getSearchResult(String query) {
         try {
-            URI uri = new URIBuilder("https://maps.googleapis.com/maps/api/place/textsearch/json")
-                    .addParameter("query", query)
-                    .addParameter("latitude", Double.toString(lat))
-                    .addParameter("longitude", Double.toString(lon))
-                    .addParameter("radius", "30000")
-                    .addParameter("key", APIKey)
-                    .build();
-            HttpGet httpGet = new HttpGet(uri);
-            HttpResponse response = client.execute(httpGet);
-            BufferedReader br = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-            JsonParser parser = new JsonParser();
-            JsonObject jo = parser.parse(br.readLine()).getAsJsonObject();
-            br.close();
-            return jo;
+            URI uri;
+            if(this.lat < Double.MAX_VALUE) {
+                uri = new URIBuilder("https://maps.googleapis.com/maps/api/place/textsearch/json")
+                        .addParameter("query", query)
+                        .addParameter("latitude", Double.toString(lat))
+                        .addParameter("longitude", Double.toString(lon))
+                        .addParameter("radius", "30000")
+                        .addParameter("key", APIKey)
+                        .build();
+            } else {
+                uri = new URIBuilder("https://maps.googleapis.com/maps/api/place/textsearch/json")
+                        .addParameter("query", query)
+                        .addParameter("radius", "30000")
+                        .addParameter("key", APIKey)
+                        .build();
+            }
+            JsonObject jo = getResponse(uri);
+            JsonArray ja = jo.get("results").getAsJsonArray();
+            LinkedList<Place> places = new LinkedList<>();
+            for(JsonElement je : ja) {
+                places.add(new Place(je.getAsJsonObject()));
+            }
+            return places;
         } catch(URISyntaxException e) {
             System.err.println("Google API disabled");
         } catch(IOException e) {
             System.err.println("No Response Error");
         }
         return null;
+    }
+
+    public HashMap<String, String> getPlaceDetail(Place place) {
+        HashMap<String, String> result = new HashMap<>();
+        try {
+            URI uri = new URIBuilder("https://maps.googleapis.com/maps/api/place/details/json")
+                    .addParameter("placeid", place.getId())
+                    .addParameter("key", APIKey)
+                    .build();
+            JsonObject jo = getResponse(uri);
+            if(jo.get("status").getAsString().equals("OK")) {
+                jo = jo.get("result").getAsJsonObject();
+                result.put("Address", jo.get("formatted_address").getAsString());
+                result.put("Phone_Number", jo.get("formatted_phone_number").getAsString());
+                result.put("Name", place.getName());
+                result.put("Icon", place.getIcon());
+                result.put("Open", Boolean.toString(place.isOpen()));
+                result.put("Rating", jo.get("rating").getAsString());
+                result.put("GoogleURL", jo.get("url").getAsString());
+                return result;
+            } else {
+                System.err.println("Place Not Found");
+                return null;
+            }
+        } catch(URISyntaxException e) {
+            System.err.println("Google API disabled");
+        } catch(IOException e) {
+            System.err.println("No Response Error");
+        }
+        return null;
+    }
+
+    private JsonObject getResponse(URI uri) throws IOException {
+        HttpGet httpGet = new HttpGet(uri);
+        HttpResponse response = client.execute(httpGet);
+        BufferedReader br = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+        JsonParser parser = new JsonParser();
+        JsonObject jo = parser.parse(br.readLine()).getAsJsonObject();
+        br.close();
+        return jo;
     }
 }
