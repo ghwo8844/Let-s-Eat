@@ -1,12 +1,14 @@
 /**
  * Created by Hojae Jung on 2/3/2017.
  */
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -18,6 +20,8 @@ import org.apache.http.impl.client.HttpClients;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import javax.imageio.ImageIO;
 
 
 class GooglePlacesAPIHandler {
@@ -95,6 +99,36 @@ class GooglePlacesAPIHandler {
                 System.err.println("Place Not Found");
                 return null;
             }
+        } catch(URISyntaxException e) {
+            System.err.println("Google API disabled");
+        } catch(IOException e) {
+            System.err.println("No Response Error");
+        }
+        return null;
+    }
+
+    public List<BufferedImage> getImages(Place place, int height, int width) {
+        List<BufferedImage> imgs = new ArrayList<>();
+        try {
+            for(JsonElement je : place.getPhoto()) {
+                URI uri = new URIBuilder("https://maps.googleapis.com/maps/api/place/photo")
+                        .addParameter("photoreference", je.getAsJsonObject().get("photo_reference").getAsString())
+                        .addParameter("maxheight", ""+height)
+                        .addParameter("maxwidth", ""+width)
+                        .addParameter("key", APIKey)
+                        .build();
+                HttpGet httpGet = new HttpGet(uri);
+                HttpResponse response = client.execute(httpGet);
+                if(response.getStatusLine().getStatusCode() == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                    imgs.add(ImageIO.read(new File(br.readLine())));
+                    br.close();
+                } else {
+                    System.err.println(response.getStatusLine() + ": Place Not Found");
+                    return null;
+                }
+            }
+            return imgs;
         } catch(URISyntaxException e) {
             System.err.println("Google API disabled");
         } catch(IOException e) {
